@@ -6,6 +6,7 @@ const { Pool } = require("pg");
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+
 // PostgreSQL Database Connection
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
@@ -24,9 +25,10 @@ app.get("/api/posts", async (req, res) => {
         res.json(result.rows);
     } catch (error) {
         console.error("Database error:", error);
-        res.status(500).send("Internal Server Error");
+        res.status(500).json({ error: "Internal Server Error", details: error.message });
     }
 });
+
 
 // Serve index.html for all routes
 app.get("*", (req, res) => {
