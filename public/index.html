@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gym Security Blog</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <h1>Welcome to the Gym Security Blog</h1>
+    <div id="posts"></div>
+
+    <script>
+        fetch('/api/posts')
+            .then(response => response.json())
+            .then(posts => {
+                const postsContainer = document.getElementById('posts');
+                posts.forEach(post => {
+                    const postElement = document.createElement('div');
+                    postElement.innerHTML = `<h2>${post.title}</h2><p>${post.content}</p><hr>`;
+                    postsContainer.appendChild(postElement);
+                });
+            })
+            .catch(error => console.error('Error fetching posts:', error));
+    </script>
+</body>
+</html>
