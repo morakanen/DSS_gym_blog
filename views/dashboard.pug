@@ -1,0 +1,32 @@
+extends layout
+
+block content
+  .container.dashboard-container
+    .card.shadow
+      .card-header.bg-primary.text-white
+        .d-flex.justify-content-between.align-items-center
+          h2.mb-0 Welcome to Fitness Hub
+          a.btn.btn-light(href="/logout") Logout
+      .card-body
+        .alert.alert-info
+          strong Logged in as: 
+          span #{email}
+        .row.mt-4
+          .col-md-4
+            .card.mb-3
+              .card-body.text-center
+                h3.card-title Workouts
+                p.card-text Track your daily workouts
+                button.btn.btn-outline-primary View Workouts
+          .col-md-4
+            .card.mb-3
+              .card-body.text-center
+                h3.card-title Progress
+                p.card-text Monitor your fitness progress
+                button.btn.btn-outline-primary Check Progress
+          .col-md-4
+            .card.mb-3
+              .card-body.text-center
+                h3.card-title Schedule
+                p.card-text Manage your gym schedule
+                button.btn.btn-outline-primary View Schedule
