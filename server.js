@@ -2,7 +2,7 @@ const dotenv = require('dotenv')
 const express = require("express");
 const session = require("express-session");
 const path = require("path");
-const { Pool } = require("pg");
+const pool = require('../db');
 const bodyParser = require("body-parser");
 
 const app = express();
@@ -16,13 +16,8 @@ const PORT = process.env.PORT || 3000;
 // Serve static files from public directory first
 app.use(express.static('public'));
 
-// PostgreSQL Database Connection
-const pool = new Pool({
-    connectionString: process.env.DATABASE_URL,
-    ssl: {
-        rejectUnauthorized: false, // Needed for Railway-managed PostgreSQL
-    },
-});
+
+
 
 app.get('/', (req, res) => {
     res.render('index');
