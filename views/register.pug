@@ -1,47 +1,41 @@
 extends layout
 
 block content
-  .container.login-container
-    .card.shadow
-      .card-header.text-white.text-center
-        h2.mb-0
-          i.bi.bi-person-plus-fill.me-2
-          | Create Account
-      .card-body.p-4
-        form(action="#")
-          .mb-4
-            label.form-label(for="email")
-              i.bi.bi-envelope.me-2
-              | Email address
-            .input-group
-              span.input-group-text
-                i.bi.bi-envelope-fill
-              input.form-control#email(type="email" name="email" placeholder="Enter your email" required)
-          .mb-4
-            label.form-label(for="password")
-              i.bi.bi-lock.me-2
-              | Password
-            .input-group
-              span.input-group-text
-                i.bi.bi-lock-fill
-              input.form-control#password(type="password" name="password" placeholder="Choose a password" required)
-          .mb-4
-            label.form-label(for="confirmPassword")
-              i.bi.bi-shield-lock.me-2
-              | Confirm Password
-            .input-group
-              span.input-group-text
-                i.bi.bi-shield-lock-fill
-              input.form-control#confirmPassword(type="password" name="confirmPassword" placeholder="Confirm your password" required)
-          .d-grid.gap-2
-            button.btn.btn-primary(type="submit")
-              i.bi.bi-person-check.me-2
-              | Create Account
-          .mt-4.text-center
-            a.text-decoration-none(href="/login")
-              i.bi.bi-box-arrow-in-right.me-2
-              | Already have an account? Login
-            br
-            a.text-decoration-none.text-muted.mt-3.d-block(href="/")
-              i.bi.bi-house.me-2
-              | Back to Home
+  .container.py-5
+    .row.justify-content-center
+      .col-12.col-sm-10.col-md-8.col-lg-6.col-xl-5
+        .card.shadow-lg.border-0.rounded-lg.mt-5
+          .card-header.text-white.text-center.py-4
+            h2.mb-0.fs-4
+              i.bi.bi-person-plus.me-2
+              | Create Your Account
+          .card-body.p-4.p-sm-5
+            form(action="#")
+              .form-floating.mb-4
+                input.form-control#email(type="email" name="email" placeholder="name@example.com" required)
+                label(for="email")
+                  i.bi.bi-envelope.me-2
+                  | Email address
+              .form-floating.mb-4
+                input.form-control#password(type="password" name="password" placeholder="Password" required)
+                label(for="password")
+                  i.bi.bi-lock.me-2
+                  | Password
+              .form-floating.mb-4
+                input.form-control#confirmPassword(type="password" name="confirmPassword" placeholder="Confirm Password" required)
+                label(for="confirmPassword")
+                  i.bi.bi-shield-lock.me-2
+                  | Confirm Password
+              .d-grid.gap-2.mb-4
+                button.btn.btn-primary.btn-lg(type="submit")
+                  i.bi.bi-person-check.me-2
+                  | Create Account
+              .text-center
+                .small.mb-3
+                  a.text-decoration-none(href="/login")
+                    i.bi.bi-box-arrow-in-right.me-2
+                    | Already have an account? Login
+                .small
+                  a.text-decoration-none.text-muted(href="/")
+                    i.bi.bi-house.me-2
+                    | Back to Home

@@ -12,7 +12,6 @@ const app = express();
 app.set('view engine', 'pug');
 app.set('views', path.join(__dirname, 'views'));
 app.use(bodyParser.urlencoded({ extended: true }));
-app.use(express.static('public'));
 const PORT = process.env.PORT || 3000;
 // Serve static files from public directory first
 app.use(express.static('public'));
@@ -35,6 +34,18 @@ app.get('/', (req, res) => {
   
   app.get('/register', (req, res) => {
     res.render('register');
+  });
+
+  //api routes
+  app.post('/api/contact', async (req, res) => {
+    try {
+      const { name, email, message } = req.body;
+      console.log('Contact form submission:', { name, email, message });
+      res.json({ success: true, message: 'Message sent successfully!' });
+    } catch (error) {
+      console.error('Error processing contact form:', error);
+      res.status(500).json({ success: false, message: 'Failed to send message' });
+    }
   });
   
   app.listen(PORT, () => {
