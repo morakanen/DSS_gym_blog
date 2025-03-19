@@ -1,17 +1,21 @@
-const { Pool } = require('pg');
-require('dotenv').config(); // Load environment variables
+const { Pool } = require("pg");
+require("dotenv").config(); // Load environment variables
 
-// Create a new PostgreSQL pool connection
+console.log("🔍 Connecting to PostgreSQL at:", process.env.DATABASE_URL);
+
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL, // Use environment variable for security
+  connectionString: process.env.DATABASE_URL,
   ssl: {
-    rejectUnauthorized: false // Required for Railway PostgreSQL
-  }
+    rejectUnauthorized: false, // Required for Railway public connections
+  },
 });
 
 // Test the database connection
 pool.connect()
-  .then(() => console.log('✅ Connected to PostgreSQL Database'))
-  .catch(err => console.error('❌ Connection Error:', err));
+  .then(() => console.log("✅ Connected to Railway PostgreSQL (Public Network)"))
+  .catch((err) => {
+    console.error("❌ Connection Error:", err);
+    process.exit(1); // Exit if DB fails to connect
+  });
 
 module.exports = pool;
