@@ -10,7 +10,12 @@ block content
               i.bi.bi-person-plus.me-2
               | Create Your Account
           .card-body.p-4.p-sm-5
-            form(action="#")
+            form(action='/registerinfo' method="POST")
+              .form-floating.mb-4
+                input.form-control#name(type="name" name="name" placeholder="name" required)
+                label(for="Name")
+                  i.bi.bi-lock.me-2
+                  | Full Name
               .form-floating.mb-4
                 input.form-control#email(type="email" name="email" placeholder="name@example.com" required)
                 label(for="email")

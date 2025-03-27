@@ -1,9 +1,11 @@
-const { Pool } = require("pg");
-require("dotenv").config(); // Load environment variables
+import pg from 'pg'
+import dotenv from 'dotenv';
+dotenv.config();
+
 
 console.log("🔍 Connecting to PostgreSQL at:", process.env.DATABASE_URL);
 
-const pool = new Pool({
+const pool = new pg.Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: {
     rejectUnauthorized: false, // Required for Railway public connections
@@ -18,4 +20,6 @@ pool.connect()
     process.exit(1); // Exit if DB fails to connect
   });
 
-module.exports = pool;
+export const query = (text, params) => pool.query(text, params);
+
+export default pool;
