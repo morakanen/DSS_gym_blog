@@ -1,5 +1,6 @@
 import express from "express";
 import session from "express-session";
+import cookieParser from "cookie-parser";
 import { join, dirname } from "path";
 import { fileURLToPath } from 'url';
 import bodyParser from 'body-parser';
@@ -13,6 +14,22 @@ dotenv.config();
 const app = express();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
+
+// Use cookie-parser
+app.use(cookieParser());
+
+// Set up session middleware with security settings
+app.use(session({
+  secret: process.env.SESSION_SECRET || 'super-secret-key', // Secret key for session encryption
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    httpOnly: true,              // Can't be accessed via JavaScript
+    secure: process.env.NODE_ENV === 'production',  // Only use cookies over HTTPS in production
+    sameSite: 'Lax',             // Prevent CSRF attacks
+    maxAge: 1000 * 60 * 60,      // Session expiration in 1 hour
+  }
+}));
 
 // Middleware
 app.set('view engine', 'pug');
@@ -28,13 +45,12 @@ app.get('/', (req, res) => res.render('index'));
 app.get('/login', (req, res) => res.render('login'));
 app.get('/register', (req, res) => res.render('register'));
 
-// Handles form submission
+// Register user
 app.post('/registerinfo', async (req, res) => {
   try {
     const { name, email, password } = req.body;
-    //encrypts password before storing
     const hashedPassword = await bcrypt.hash(password, 10);
-    
+
     await query(
       'INSERT INTO users (name, email, password) VALUES ($1, $2, $3)',
       [name, email, hashedPassword]
@@ -47,34 +63,54 @@ app.post('/registerinfo', async (req, res) => {
   }
 });
 
-app.post('/logininfo', async (req,res)=>{
-    const { email, password } = req.body;
+// Login user
+app.post('/logininfo', async (req, res) => {
+  const { email, password } = req.body;
 
-    try {
-      // Finds user by email
-      const user = await prisma.users.findUnique({ where: { email } });
-  
-      if (!user) {
-        return res.status(400).send('Invalid email or password');
-      }
-  
-      // Compares passwords using bcrypt
-      const isMatch = await bcrypt.compare(password, user.password);
-  
-      if (!isMatch) {
-        return res.status(400).send('Invalid email or password');
-      }
-  
-      
-      res.send(`Welcome, ${user.name}!`);
-      
-     
-    } catch (error) {
-      console.error('Login error:', error);
-      res.status(500).send('Something went wrong');
+  try {
+    const user = await prisma.users.findUnique({ where: { email } });
+
+    if (!user) {
+      return res.status(400).send('Invalid email or password');
     }
+
+    const isMatch = await bcrypt.compare(password, user.password);
+
+    if (!isMatch) {
+      return res.status(400).send('Invalid email or password');
+    }
+
+    req.session.regenerate(err => {
+      if (err) {
+        return res.status(500).send('Session regeneration failed');
+      }
+
+      req.session.user = {
+        id: user.id,
+        name: user.name,
+        email: user.email
+      };
+
+      // Session rotation every 30 minutes
+      setInterval(() => {
+        req.session.regenerate(err => {
+          if (err) {
+            console.error('Session rotation failed');
+          } else {
+            console.log('Session rotated successfully');
+          }
+        });
+      }, 1000 * 60 * 30); // Rotate every 30 minutes
+
+      res.send(`Welcome, ${user.name}!`);
+    });
+  } catch (error) {
+    console.error('Login error:', error);
+    res.status(500).send('Something went wrong');
+  }
 });
 
+// Test Database
 app.get("/test-db", async (req, res) => {
   try {
     const result = await query("SELECT NOW()");
