@@ -1,9 +1,10 @@
 import express from "express";
 import session from "express-session";
 import cookieParser from "cookie-parser";
+import rateLimit from "express-rate-limit"; // New: rate limiting middleware
 import { join, dirname } from "path";
 import { fileURLToPath } from 'url';
-import bodyParser from 'body-parser';
+import bodyParser from "body-parser";
 import bcrypt from "bcrypt";
 import { PrismaClient } from "@prisma/client";
 import dotenv from 'dotenv';
@@ -30,6 +31,15 @@ app.use(session({
     maxAge: 1000 * 60 * 60,      // Session expiration in 1 hour
   }
 }));
+
+// Set up a rate limiter for the login route (15 minutes window, max 5 attempts per IP)
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 5, // Limit each IP to 5 login requests per windowMs
+  message: "Too many login attempts, please try again after 15 minutes.",
+  standardHeaders: true, // Return rate limit info in the RateLimit-* headers
+  legacyHeaders: false,  
+});
 
 // Middleware
 app.set('view engine', 'pug');
@@ -63,23 +73,26 @@ app.post('/registerinfo', async (req, res) => {
   }
 });
 
-// Login user
-app.post('/logininfo', async (req, res) => {
+// Login user with rate limiter and generic error messages to prevent account enumeration
+app.post('/logininfo', loginLimiter, async (req, res) => {
   const { email, password } = req.body;
 
   try {
     const user = await prisma.users.findUnique({ where: { email } });
 
+    // Generic error message: avoids disclosing whether the email is registered
     if (!user) {
       return res.status(400).send('Invalid email or password');
     }
 
     const isMatch = await bcrypt.compare(password, user.password);
 
+    // Same generic error message for password mismatch
     if (!isMatch) {
       return res.status(400).send('Invalid email or password');
     }
 
+    // Regenerate session ID to prevent session fixation
     req.session.regenerate(err => {
       if (err) {
         return res.status(500).send('Session regeneration failed');
@@ -91,7 +104,7 @@ app.post('/logininfo', async (req, res) => {
         email: user.email
       };
 
-      // Session rotation every 30 minutes
+      // Session rotation every 30 minutes to further enhance security
       setInterval(() => {
         req.session.regenerate(err => {
           if (err) {
