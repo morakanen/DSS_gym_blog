@@ -1,5 +1,32 @@
 extends layout
 
+block scripts
+  // Load hCaptcha script
+  script(src="https://js.hcaptcha.com/1/api.js" async defer)
+  script.
+    document.addEventListener('DOMContentLoaded', function() {
+      const loginForm = document.getElementById('login-form');
+      const submitButton = document.getElementById('submit-button');
+      
+      if (submitButton) submitButton.disabled = true;
+
+      // Enable on CAPTCHA completion
+      window.onCaptchaSuccess = function() {
+        if (submitButton) submitButton.disabled = false;
+      };
+
+      if (loginForm) {
+        loginForm.addEventListener('submit', function(e) {
+          const captchaResponse = document.querySelector('[name="h-captcha-response"]')?.value;
+          if (!captchaResponse) {
+            e.preventDefault();
+            const msg = document.getElementById('captcha-message');
+            if (msg) msg.style.display = 'block';
+          }
+        });
+      }
+    });
+
 block content
   .container.py-5
     .row.justify-content-center
@@ -10,7 +37,7 @@ block content
               i.bi.bi-person-circle.me-2
               | Login to Your Account
           .card-body.p-4.p-sm-5
-            form(action="/logininfo" method="POST")
+            form#login-form(name="loginform" action="/logininfo" method="POST")
               .form-floating.mb-4
                 input.form-control#email(type="email" name="email" placeholder="name@example.com" required)
                 label(for="email")
@@ -22,7 +49,10 @@ block content
                   i.bi.bi-lock.me-2
                   | Password
               .d-grid.gap-2.mb-4
-                button.btn.btn-primary.btn-lg(type="submit")
+                .form-group
+                  .h-captcha(data-sitekey="530cecc2-f736-4d4a-8386-5572cd78b2c2" data-callback="onCaptchaSuccess")
+                  p#captcha-message.text-danger(style="display:none") Please complete the CAPTCHA.
+                button#submit-button.btn.btn-primary.btn-lg(type="submit")
                   i.bi.bi-box-arrow-in-right.me-2
                   | Login
               .text-center

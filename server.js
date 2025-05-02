@@ -9,6 +9,8 @@ import bcrypt from "bcrypt";
 import { PrismaClient } from "@prisma/client";
 import dotenv from 'dotenv';
 import { query } from "./database.js"; // Using your own query wrapper from pg
+import {verify} from "hcaptcha";
+
 
 dotenv.config();
 
@@ -49,6 +51,8 @@ app.use(bodyParser.urlencoded({ extended: true }));
 
 const prisma = new PrismaClient();
 const PORT = process.env.PORT || 3000;
+const hcaptcha_token= process.env.hcaptcha_token;
+const hcaptcha_secret=process.env.hcaptcha_secret;
 
 // Routes
 app.get('/', (req, res) => res.render('index'));
@@ -73,30 +77,43 @@ app.post('/registerinfo', async (req, res) => {
   }
 });
 
-// Login user with rate limiter and generic error messages to prevent account enumeration
 app.post('/logininfo', loginLimiter, async (req, res) => {
-  const { email, password } = req.body;
+  const { email, password, 'h-captcha-response': hcaptchaResponse } = req.body;
 
   try {
+    if (!hcaptchaResponse) {
+      return res.render('login', {
+        error: 'Please complete the CAPTCHA verification',
+        title: 'Login Page',
+        email: email,
+        hcaptchatoken: process.env.hcaptcha_token || 'YOUR_SITE_KEY'
+      });
+    }
+
+    // VERIFY CAPTCHA HERE
+    const verifyResult = await verify(process.env.hcaptcha_secret, hcaptchaResponse);
+    if (!verifyResult.success) {
+      return res.render('login', {
+        error: 'CAPTCHA verification failed',
+        title: 'Login Page',
+        email: email,
+        hcaptchatoken: process.env.hcaptcha_token || 'YOUR_SITE_KEY'
+      });
+    }
+
     const user = await prisma.users.findUnique({ where: { email } });
 
-    // Generic error message: avoids disclosing whether the email is registered
     if (!user) {
       return res.status(400).send('Invalid email or password');
     }
 
     const isMatch = await bcrypt.compare(password, user.password);
-
-    // Same generic error message for password mismatch
     if (!isMatch) {
       return res.status(400).send('Invalid email or password');
     }
 
-    // Regenerate session ID to prevent session fixation
     req.session.regenerate(err => {
-      if (err) {
-        return res.status(500).send('Session regeneration failed');
-      }
+      if (err) return res.status(500).send('Session regeneration failed');
 
       req.session.user = {
         id: user.id,
@@ -104,19 +121,9 @@ app.post('/logininfo', loginLimiter, async (req, res) => {
         email: user.email
       };
 
-      // Session rotation every 30 minutes to further enhance security
-      setInterval(() => {
-        req.session.regenerate(err => {
-          if (err) {
-            console.error('Session rotation failed');
-          } else {
-            console.log('Session rotated successfully');
-          }
-        });
-      }, 1000 * 60 * 30); // Rotate every 30 minutes
-
       res.send(`Welcome, ${user.name}!`);
     });
+
   } catch (error) {
     console.error('Login error:', error);
     res.status(500).send('Something went wrong');
