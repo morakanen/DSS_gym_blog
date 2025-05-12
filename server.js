@@ -9,6 +9,8 @@ import bcrypt from "bcrypt";
 import { PrismaClient } from "@prisma/client";
 import dotenv from 'dotenv';
 import { query } from "./database.js"; // Using your own query wrapper from pg
+import csurf from 'csurf';
+import helmet from 'helmet';
 
 dotenv.config();
 
@@ -16,8 +18,36 @@ const app = express();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
+
+//  Set a Content Security Policy to reduce XSS risk
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "https://cdn.jsdelivr.net"],  // Allow Bootstrap JS
+      styleSrc: ["'self'", "'unsafe-inline'", "https://cdn.jsdelivr.net"],  // Allow inline styles and Bootstrap
+      imgSrc: ["'self'", "https://images.unsplash.com", "data:"],  // Allow your images
+      fontSrc: ["'self'", "https://cdn.jsdelivr.net"],  // Fonts from Bootstrap CDN
+      objectSrc: ["'none'"],  // No Flash, Java, etc.
+      upgradeInsecureRequests: []  // Forces HTTPS
+    }
+  }
+}));
+
 // Use cookie-parser
 app.use(cookieParser());
+// csurf' middleware generates a unique token per session,
+const csrfProtection = csurf({ cookie: true }); // Enable token-based CSRF using cookies
+
+
+app.use(csrfProtection);// Apply CSRF protection globally
+
+
+// Make token available in all views
+app.use((req, res, next) => {
+  res.locals.csrfToken = req.csrfToken();
+  next();
+});
 
 // Set up session middleware with security settings
 app.use(session({

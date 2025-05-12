@@ -11,6 +11,8 @@ block content
               | Create Your Account
           .card-body.p-4.p-sm-5
             form(action='/registerinfo' method="POST")
+              //  CSRF token field to protect registration form
+              input(type="hidden", name="_csrf", value=csrfToken)
               .form-floating.mb-4
                 input.form-control#name(type="name" name="name" placeholder="name" required)
                 label(for="Name")

@@ -63,6 +63,8 @@ block content
       .row.justify-content-center
         .col-lg-6
           form#contactForm
+            //  CSRF token field to protect contact form
+            input(type="hidden", name="_csrf", value=csrfToken)
             .mb-3
               input#name.form-control(type="text" placeholder="Your Name" required)
             .mb-3
@@ -86,6 +88,8 @@ block scripts
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
+            'CSRF-Token': document.querySelector('input[name="_csrf"]').value,
+
           },
           body: JSON.stringify({
             name: document.getElementById('name').value,

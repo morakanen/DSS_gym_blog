@@ -11,6 +11,8 @@ block content
               | Login to Your Account
           .card-body.p-4.p-sm-5
             form(action="/logininfo" method="POST")
+            // CSRF token field to protect this login form
+            input(type="hidden", name="_csrf", value=csrfToken)
               .form-floating.mb-4
                 input.form-control#email(type="email" name="email" placeholder="name@example.com" required)
                 label(for="email")
