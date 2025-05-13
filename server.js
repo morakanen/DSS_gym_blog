@@ -10,6 +10,11 @@ import { PrismaClient } from "@prisma/client";
 import dotenv from 'dotenv';
 import { query } from "./database.js"; // Using your own query wrapper from pg
 import {verify} from "hcaptcha";
+import nodemailer from "nodemailer";
+import speakeasy from "speakeasy";
+import csurf from 'csurf';
+import helmet from 'helmet';
+
 
 
 dotenv.config();
@@ -18,8 +23,28 @@ const app = express();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
+//  Set a Content Security Policy to reduce XSS risk
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "https://cdn.jsdelivr.net"],  // Allow Bootstrap JS
+      styleSrc: ["'self'", "'unsafe-inline'", "https://cdn.jsdelivr.net"],  // Allow inline styles and Bootstrap
+      imgSrc: ["'self'", "https://images.unsplash.com", "data:"],  // Allow your images
+      fontSrc: ["'self'", "https://cdn.jsdelivr.net"],  // Fonts from Bootstrap CDN
+      objectSrc: ["'none'"],  // No Flash, Java, etc.
+      upgradeInsecureRequests: []  // Forces HTTPS
+    }
+  }
+}));
+//anthony needs to test on actual browser
+
 // Use cookie-parser
 app.use(cookieParser());
+// csurf' middleware generates a unique token per session,
+const csrfProtection = csurf({ cookie: true }); // Enable token-based CSRF using cookies
+
+
 
 // Set up session middleware with security settings
 app.use(session({
@@ -53,6 +78,7 @@ const prisma = new PrismaClient();
 const PORT = process.env.PORT || 3000;
 const hcaptcha_token= process.env.hcaptcha_token;
 const hcaptcha_secret=process.env.hcaptcha_secret;
+
 
 // Routes
 app.get('/', (req, res) => res.render('index'));
@@ -90,7 +116,7 @@ app.post('/logininfo', loginLimiter, async (req, res) => {
       });
     }
 
-    // VERIFY CAPTCHA HERE
+    
     const verifyResult = await verify(process.env.hcaptcha_secret, hcaptchaResponse);
     if (!verifyResult.success) {
       return res.render('login', {
@@ -107,7 +133,7 @@ app.post('/logininfo', loginLimiter, async (req, res) => {
       return res.status(400).send('Invalid email or password');
     }
 
-    const isMatch = await bcrypt.compare(password, user.password);
+    const isMatch = bcrypt.compare(password, user.password);//removed await
     if (!isMatch) {
       return res.status(400).send('Invalid email or password');
     }
@@ -129,6 +155,42 @@ app.post('/logininfo', loginLimiter, async (req, res) => {
     res.status(500).send('Something went wrong');
   }
 });
+
+
+//email tool
+const transporter = nodemailer.createTransport({
+  service: 'gmail', // or use SMTP config
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS
+  }
+});
+
+function sendOTPEmail(to, code) {
+  return transporter.sendMail({
+    from: process.env.EMAIL_USER,
+    to,
+    subject: 'Your 2FA Code',
+    text: `Your verification code is: ${code}`
+  });
+}
+
+//2FA authentication
+function generateOTP() {
+  return speakeasy.totp({
+    secret: process.env.TWO_FA_SECRET || 'staticsecret',
+    encoding: 'ascii',
+    step: 300 // valid for 5 minutes
+  })};
+
+  function verifyOTP(token) {
+    return speakeasy.totp.verify({
+      secret: process.env.TWO_FA_SECRET || 'staticsecret',
+      encoding: 'ascii',
+      token,
+      window: 1
+    })};
+
 
 // Test Database
 app.get("/test-db", async (req, res) => {
