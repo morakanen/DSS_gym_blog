@@ -1,14 +1,15 @@
 import express from "express";
 import session from "express-session";
 import cookieParser from "cookie-parser";
-import rateLimit from "express-rate-limit"; // New: rate limiting middleware
+import rateLimit from "express-rate-limit";
 import { join, dirname } from "path";
 import { fileURLToPath } from 'url';
 import bodyParser from "body-parser";
 import bcrypt from "bcrypt";
 import { PrismaClient } from "@prisma/client";
 import dotenv from 'dotenv';
-import { query } from "./database.js"; // Using your own query wrapper from pg
+import { query } from "./database.js";
+import nodemailer from "nodemailer"; // === 2FA EMAIL START ===
 
 dotenv.config();
 
@@ -16,32 +17,28 @@ const app = express();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-// Use cookie-parser
 app.use(cookieParser());
 
-// Set up session middleware with security settings
 app.use(session({
-  secret: process.env.SESSION_SECRET || 'super-secret-key', // Secret key for session encryption
+  secret: process.env.SESSION_SECRET || 'super-secret-key',
   resave: false,
   saveUninitialized: false,
   cookie: {
-    httpOnly: true,              // Can't be accessed via JavaScript
-    secure: process.env.NODE_ENV === 'production',  // Only use cookies over HTTPS in production
-    sameSite: 'Lax',             // Prevent CSRF attacks
-    maxAge: 1000 * 60 * 60,      // Session expiration in 1 hour
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'Lax',
+    maxAge: 1000 * 60 * 60,
   }
 }));
 
-// Set up a rate limiter for the login route (15 minutes window, max 5 attempts per IP)
 const loginLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 5, // Limit each IP to 5 login requests per windowMs
+  windowMs: 15 * 60 * 1000,
+  max: 5,
   message: "Too many login attempts, please try again after 15 minutes.",
-  standardHeaders: true, // Return rate limit info in the RateLimit-* headers
-  legacyHeaders: false,  
+  standardHeaders: true,
+  legacyHeaders: false,
 });
 
-// Middleware
 app.set('view engine', 'pug');
 app.set('views', join(__dirname, 'views'));
 app.use(express.static(join(__dirname, 'public')));
@@ -50,12 +47,51 @@ app.use(bodyParser.urlencoded({ extended: true }));
 const prisma = new PrismaClient();
 const PORT = process.env.PORT || 3000;
 
-// Routes
+// === 2FA EMAIL START ===
+const transporter = nodemailer.createTransport({
+  service: 'gmail',
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS
+  }
+});
+// === 2FA EMAIL END ===
+
 app.get('/', (req, res) => res.render('index'));
 app.get('/login', (req, res) => res.render('login'));
 app.get('/register', (req, res) => res.render('register'));
 
-// Register user
+// === 2FA EMAIL START ===
+app.get('/verify-2fa', (req, res) => {
+  if (!req.session.tempUser) return res.redirect('/login');
+  res.render('verify-2fa');
+});
+
+app.post('/verify-2fa', (req, res) => {
+  const { code } = req.body;
+  const { tempUser, twoFACode, twoFAExpires } = req.session;
+
+  if (!tempUser || !twoFACode || !twoFAExpires) {
+    return res.redirect('/login');
+  }
+
+  if (Date.now() > twoFAExpires) {
+    return res.status(401).send("2FA code expired. Please log in again.");
+  }
+
+  if (code !== twoFACode) {
+    return res.status(401).send("Invalid 2FA code.");
+  }
+
+  req.session.user = tempUser;
+  delete req.session.tempUser;
+  delete req.session.twoFACode;
+  delete req.session.twoFAExpires;
+
+  res.send(`Welcome, ${req.session.user.name}! 2FA complete.`);
+});
+// === 2FA EMAIL END ===
+
 app.post('/registerinfo', async (req, res) => {
   try {
     const { name, email, password } = req.body;
@@ -73,57 +109,45 @@ app.post('/registerinfo', async (req, res) => {
   }
 });
 
-// Login user with rate limiter and generic error messages to prevent account enumeration
 app.post('/logininfo', loginLimiter, async (req, res) => {
   const { email, password } = req.body;
 
   try {
     const user = await prisma.users.findUnique({ where: { email } });
 
-    // Generic error message: avoids disclosing whether the email is registered
     if (!user) {
       return res.status(400).send('Invalid email or password');
     }
 
     const isMatch = await bcrypt.compare(password, user.password);
 
-    // Same generic error message for password mismatch
     if (!isMatch) {
       return res.status(400).send('Invalid email or password');
     }
 
-    // Regenerate session ID to prevent session fixation
-    req.session.regenerate(err => {
-      if (err) {
-        return res.status(500).send('Session regeneration failed');
-      }
+    // === 2FA EMAIL START ===
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    req.session.tempUser = { id: user.id, name: user.name, email: user.email };
+    req.session.twoFACode = code;
+    req.session.twoFAExpires = Date.now() + 5 * 60 * 1000;
 
-      req.session.user = {
-        id: user.id,
-        name: user.name,
-        email: user.email
-      };
-
-      // Session rotation every 30 minutes to further enhance security
-      setInterval(() => {
-        req.session.regenerate(err => {
-          if (err) {
-            console.error('Session rotation failed');
-          } else {
-            console.log('Session rotated successfully');
-          }
-        });
-      }, 1000 * 60 * 30); // Rotate every 30 minutes
-
-      res.send(`Welcome, ${user.name}!`);
+    await transporter.sendMail({
+      from: process.env.EMAIL_USER,
+      to: user.email,
+      subject: 'Your 2FA Code',
+      text: `Your 2FA code is: ${code}`
     });
+
+    return res.redirect('/verify-2fa');
+    // === 2FA EMAIL END ===
+
+
   } catch (error) {
     console.error('Login error:', error);
     res.status(500).send('Something went wrong');
   }
 });
 
-// Test Database
 app.get("/test-db", async (req, res) => {
   try {
     const result = await query("SELECT NOW()");
