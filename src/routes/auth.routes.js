@@ -15,11 +15,11 @@ const router = Router();
 
 // Registration
 router.get('/register', showRegisterForm);
-router.post('/register',loginLimiter, registerUser);
+router.post('/register', registerUser); // ❌ Don't rate-limit registration unless needed
 
 // Login
 router.get('/login', showLoginForm);
-router.post('/login', loginUser);
+router.post('/login', loginLimiter, loginUser); // ✅ Apply limiter here
 
 // 2FA
 router.get('/auth/verify-2fa', show2FAForm);

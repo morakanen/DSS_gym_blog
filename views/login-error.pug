@@ -1,0 +1,28 @@
+//- login-error.pug
+extends layout
+
+block content
+  .container.py-5
+    .row.justify-content-center
+      .col-12.col-sm-10.col-md-8.col-lg-6.col-xl-5
+        .card.shadow-lg.border-0.rounded-lg.mt-5
+          .card-header.text-white.bg-danger.text-center.py-4
+            h2.mb-0.fs-4
+              i.bi.bi-exclamation-triangle.me-2
+              | Login Error
+          .card-body.p-4.p-sm-5.text-center
+            if errorType === 'rate-limit'
+              .mb-4
+                i.bi.bi-clock-history.text-danger(style="font-size: 3rem")
+              h4.text-danger Too Many Attempts
+              p You've exceeded the maximum number of login attempts. Please try again in 15 minutes.
+            else if errorType === 'invalid-credentials'
+              .mb-4
+                i.bi.bi-lock.text-danger(style="font-size: 3rem")
+              h4.text-danger Invalid Credentials
+              p The email or password you entered is incorrect.
+            
+            .mt-4
+              a.btn.btn-primary(href="/login")
+                i.bi.bi-arrow-left.me-2
+                | Back to Login
