@@ -1,0 +1,37 @@
+extends ../layout
+
+block content
+  .container.mt-4
+    if userName
+      h1.mb-4 Welcome #{userName} to the Blog
+    else
+      h1.mb-4 Blog Posts
+    
+    if user
+      a.btn.btn-primary.mb-4(href='/blog/new') Create New Post
+    else
+      .alert.alert-info.mb-4
+        | Please 
+        a(href='/login') log in
+        |  to create posts
+    
+    .row
+      if posts && posts.length > 0
+        each post in posts
+          .col-md-6.mb-4
+            .card
+              .card-body
+                h5.card-title= post.title
+                p.card-text= post.content ? (post.content.length > 200 ? post.content.substring(0, 200) + '...' : post.content) : ''
+                p.text-muted 
+                  | Posted by #{post.author && post.author.name ? post.author.name : 'Anonymous'}
+                  if post.createdAt
+                    |  on #{new Date(post.createdAt).toLocaleDateString()}
+                if user && user === post.authorId
+                  .btn-group.mt-2
+                    a.btn.btn-secondary.btn-sm(href=`/blog/${post.id}/edit`) Edit
+                    form(action=`/blog/${post.id}/delete`, method='POST', style='display: inline')
+                      button.btn.btn-danger.btn-sm(type='submit', onclick='return confirm("Are you sure?")') Delete
+      else
+        .col-12
+          .alert.alert-info No blog posts yet. Be the first to create one!

@@ -52,6 +52,7 @@ export const handleLogin = async (req, res, next) => {
         name: user.name,
         email: user.email
       };
+      req.session.userId = user.id;
       req.session.twoFACode = code;
       req.session.twoFAExpires = Date.now() + 5 * 60 * 1000; // 5 minutes
 

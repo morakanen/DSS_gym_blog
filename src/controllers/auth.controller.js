@@ -29,7 +29,7 @@ export const loginUser = async (req, res, next) => {
 export const verify2FA = async (req, res, next) => {
   try {
     await handle2FAVerification(req);
-    res.send(`Welcome, ${req.session.user.name}! 2FA complete.`);
+    res.redirect('/blog');
   } catch (error) {
     next(error);
   }

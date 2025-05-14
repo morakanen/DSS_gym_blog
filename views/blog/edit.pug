@@ -1,0 +1,14 @@
+extends ../layout
+
+block content
+  .container.mt-4
+    h1.mb-4 Edit Blog Post
+    form(action=`/blog/${post.id}`, method='POST')
+      .form-group.mb-3
+        label(for='title') Title
+        input#title.form-control(type='text', name='title', value=post.title, required)
+      .form-group.mb-3
+        label(for='content') Content
+        textarea#content.form-control(name='content', rows='10', required)= post.content
+      button.btn.btn-primary(type='submit') Update Post
+      a.btn.btn-secondary.ms-2(href='/blog') Cancel
