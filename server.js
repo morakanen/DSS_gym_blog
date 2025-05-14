@@ -24,15 +24,23 @@ app.use(helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      scriptSrc: ["'self'", "https://cdn.jsdelivr.net"],  // Allow Bootstrap JS
-      styleSrc: ["'self'", "'unsafe-inline'", "https://cdn.jsdelivr.net"],  // Allow inline styles and Bootstrap
-      imgSrc: ["'self'", "https://images.unsplash.com", "data:"],  // Allow your images
-      fontSrc: ["'self'", "https://cdn.jsdelivr.net"],  // Fonts from Bootstrap CDN
-      objectSrc: ["'none'"],  // No Flash, Java, etc.
-      upgradeInsecureRequests: []  // Forces HTTPS
+      scriptSrc: [
+        "'self'",
+        "'unsafe-inline'",                          // Only for dev
+        "https://cdn.jsdelivr.net",                // Bootstrap
+        "https://www.google.com",                  // Google reCAPTCHA scripts
+        "https://www.gstatic.com",                 // reCAPTCHA subdomain
+        "https://cdn.gingersoftware.com"           // Ginger spellcheck widget (from your console)
+      ],
+      styleSrc: ["'self'", "'unsafe-inline'", "https://cdn.jsdelivr.net"],
+      imgSrc: ["'self'", "https://images.unsplash.com", "data:"],
+      fontSrc: ["'self'", "https://cdn.jsdelivr.net"],
+      objectSrc: ["'none'"],
+      upgradeInsecureRequests: []
     }
   }
 }));
+
 
 // Use cookie-parser
 app.use(cookieParser());
