@@ -17,6 +17,7 @@ import helmet from 'helmet';
 
 
 
+
 dotenv.config();
 
 const app = express();
@@ -24,19 +25,25 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 //  Set a Content Security Policy to reduce XSS risk
-app.use(helmet({
-  contentSecurityPolicy: {
+
+
+app.use(
+  helmet.contentSecurityPolicy({
     directives: {
-      defaultSrc: ["'self'"],
-      scriptSrc: ["'self'", "https://cdn.jsdelivr.net"],  // Allow Bootstrap JS
-      styleSrc: ["'self'", "'unsafe-inline'", "https://cdn.jsdelivr.net"],  // Allow inline styles and Bootstrap
-      imgSrc: ["'self'", "https://images.unsplash.com", "data:"],  // Allow your images
-      fontSrc: ["'self'", "https://cdn.jsdelivr.net"],  // Fonts from Bootstrap CDN
-      objectSrc: ["'none'"],  // No Flash, Java, etc.
-      upgradeInsecureRequests: []  // Forces HTTPS
-    }
-  }
-}));
+      scriptSrc: [
+        "'self'",
+        "'unsafe-inline'",
+        "https://cdn.jsdelivr.net",
+        "https://www.google.com",
+        "https://www.gstatic.com",
+        "https://cdn.gingersoftware.com",
+        "https://js.hcaptcha.com", // Add hCaptcha
+      ],
+      // Optional: If you also need frame-src for hCaptcha's iframe
+      frameSrc: ["'self'", "https://hcaptcha.com", "https://*.hcaptcha.com"],
+    },
+  })
+);
 //anthony needs to test on actual browser
 
 // Use cookie-parser
@@ -80,6 +87,46 @@ const hcaptcha_token= process.env.hcaptcha_token;
 const hcaptcha_secret=process.env.hcaptcha_secret;
 
 
+
+/// 2FA
+
+const transporter = nodemailer.createTransport({
+  service: 'gmail',
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS
+  }
+});
+
+app.get('/verify-2fa', (req, res) => {
+  if (!req.session.tempUser) return res.redirect('/login');
+  res.render('verify-2fa');
+});
+
+app.post('/verify-2fa', (req, res) => {
+  const { code } = req.body;
+  const { tempUser, twoFACode, twoFAExpires } = req.session;
+
+  if (!tempUser || !twoFACode || !twoFAExpires) {
+    return res.redirect('/login');
+  }
+
+  if (Date.now() > twoFAExpires) {
+    return res.status(401).send("2FA code expired. Please log in again.");
+  }
+
+  if (code !== twoFACode) {
+    return res.status(401).send("Invalid 2FA code.");
+  }
+
+  req.session.user = tempUser;
+  delete req.session.tempUser;
+  delete req.session.twoFACode;
+  delete req.session.twoFAExpires;
+
+  res.send(`Welcome, ${req.session.user.name}! 2FA complete.`);
+});
+
 // Routes
 app.get('/', (req, res) => res.render('index'));
 app.get('/login', (req, res) => res.render('login'));
@@ -107,89 +154,104 @@ app.post('/logininfo', loginLimiter, async (req, res) => {
   const { email, password, 'h-captcha-response': hcaptchaResponse } = req.body;
 
   try {
+    // CAPTCHA verification
     if (!hcaptchaResponse) {
       return res.render('login', {
         error: 'Please complete the CAPTCHA verification',
         title: 'Login Page',
         email: email,
-        hcaptchatoken: process.env.hcaptcha_token || 'YOUR_SITE_KEY'
+        hcaptchatoken: process.env.HCAPTCHA_TOKEN || 'YOUR_SITE_KEY'
       });
     }
 
-    
-    const verifyResult = await verify(process.env.hcaptcha_secret, hcaptchaResponse);
+    const verifyResult = await verify(process.env.HCAPTCHA_SECRET, hcaptchaResponse);
     if (!verifyResult.success) {
       return res.render('login', {
         error: 'CAPTCHA verification failed',
         title: 'Login Page',
         email: email,
-        hcaptchatoken: process.env.hcaptcha_token || 'YOUR_SITE_KEY'
+        hcaptchatoken: process.env.HCAPTCHA_TOKEN || 'YOUR_SITE_KEY'
       });
     }
 
+    // User verification
     const user = await prisma.users.findUnique({ where: { email } });
-
     if (!user) {
-      return res.status(400).send('Invalid email or password');
+      return res.render('login', {
+        error: 'Invalid email or password',
+        title: 'Login Page',
+        email: email,
+        hcaptchatoken: process.env.HCAPTCHA_TOKEN || 'YOUR_SITE_KEY'
+      });
     }
 
-    const isMatch = bcrypt.compare(password, user.password);//removed await
+    // Password verification
+    const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
-      return res.status(400).send('Invalid email or password');
+      return res.render('login', {
+        error: 'Invalid email or password',
+        title: 'Login Page',
+        email: email,
+        hcaptchatoken: process.env.HCAPTCHA_TOKEN || 'YOUR_SITE_KEY'
+      });
     }
 
-    req.session.regenerate(err => {
-      if (err) return res.status(500).send('Session regeneration failed');
+    // Generate 2FA code
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
 
-      req.session.user = {
-        id: user.id,
-        name: user.name,
-        email: user.email
+    // Regenerate session before storing sensitive data
+    req.session.regenerate(async (err) => {
+      if (err) {
+        console.error('Session regeneration error:', err);
+        return res.render('login', {
+          error: 'Login failed. Please try again.',
+          title: 'Login Page',
+          email: email,
+          hcaptchatoken: process.env.HCAPTCHA_TOKEN || 'YOUR_SITE_KEY'
+        });
+      }
+
+      // Store temp user and 2FA data in the NEW session
+      req.session.tempUser = { 
+        id: user.id, 
+        name: user.name, 
+        email: user.email 
       };
+      req.session.twoFACode = code;
+      req.session.twoFAExpires = Date.now() + 5 * 60 * 1000; // 5 minutes expiry
 
-      res.send(`Welcome, ${user.name}!`);
+      // Send 2FA email
+      try {
+        await transporter.sendMail({
+          from: process.env.EMAIL_USER,
+          to: user.email,
+          subject: 'Your 2FA Code',
+          text: `Your 2FA code is: ${code}`,
+          html: `<p>Your 2FA code is: <strong>${code}</strong></p>`
+        });
+
+        return res.redirect('/verify-2fa');
+      } catch (emailError) {
+        console.error('Email sending failed:', emailError);
+        return res.render('login', {
+          error: 'Error sending 2FA code. Please try again.',
+          title: 'Login Page',
+          email: email,
+          hcaptchatoken: process.env.HCAPTCHA_TOKEN || 'YOUR_SITE_KEY'
+        });
+      }
     });
-
   } catch (error) {
     console.error('Login error:', error);
-    res.status(500).send('Something went wrong');
+    return res.render('login', {
+      error: 'An unexpected error occurred. Please try again.',
+      title: 'Login Page',
+      email: email,
+      hcaptchatoken: process.env.HCAPTCHA_TOKEN || 'YOUR_SITE_KEY'
+    });
   }
 });
 
-
-//email tool
-const transporter = nodemailer.createTransport({
-  service: 'gmail', // or use SMTP config
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS
-  }
-});
-
-function sendOTPEmail(to, code) {
-  return transporter.sendMail({
-    from: process.env.EMAIL_USER,
-    to,
-    subject: 'Your 2FA Code',
-    text: `Your verification code is: ${code}`
-  });
-}
-
-//2FA authentication
-function generateOTP() {
-  return speakeasy.totp({
-    secret: process.env.TWO_FA_SECRET || 'staticsecret',
-    encoding: 'ascii',
-    step: 300 // valid for 5 minutes
-  })};
-
-  function verifyOTP(token) {
-    return speakeasy.totp.verify({
-      secret: process.env.TWO_FA_SECRET || 'staticsecret',
-      encoding: 'ascii',
-      token,
-      window: 1
-    })};
 
 
 // Test Database
