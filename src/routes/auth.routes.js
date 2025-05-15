@@ -6,7 +6,8 @@ import {
   showLoginForm,
   loginUser,
   show2FAForm,
-  verify2FA
+  verify2FA,
+  logoutUser
 } from '../controllers/auth.controller.js';
 
 console.log('auth routes registered');
@@ -24,5 +25,8 @@ router.post('/login', loginLimiter, loginUser); // ✅ Apply limiter here
 // 2FA
 router.get('/auth/verify-2fa', show2FAForm);
 router.post('/verify-2fa', twoFactorLimiter, verify2FA);
+
+// Logout
+router.get('/logout', logoutUser);
 
 export default router;

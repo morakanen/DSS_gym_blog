@@ -83,23 +83,62 @@ export const handleLogin = async (req, res, next) => {
 };
 
 export const handle2FAVerification = (req) => {
-  const { code } = req.body;
-  const { tempUser, twoFACode, twoFAExpires } = req.session;
+  return new Promise((resolve, reject) => {
+    try {
+      console.log('--- Starting 2FA Verification ---');
+      console.log('Request body:', req.body);
+      
+      const { code } = req.body;
+      console.log('2FA Code from form:', code);
+      
+      console.log('Session ID:', req.sessionID);
+      console.log('Session data before verification:', JSON.stringify(req.session, null, 2));
+      
+      const { tempUser, twoFACode, twoFAExpires } = req.session;
 
-  if (!tempUser || !twoFACode || !twoFAExpires) {
-    throw new Error('Session expired');
-  }
+      console.log('2FA Verification - Session data:', {
+        hasTempUser: !!tempUser,
+        tempUser: tempUser ? { id: tempUser.id, email: tempUser.email } : null,
+        hasTwoFACode: !!twoFACode,
+        twoFACode: twoFACode,
+        twoFAExpires: twoFAExpires ? new Date(twoFAExpires).toISOString() : null,
+        currentTime: new Date().toISOString(),
+        isExpired: twoFAExpires ? Date.now() > twoFAExpires : true
+      });
 
-  if (Date.now() > twoFAExpires) {
-    throw new Error('2FA code expired');
-  }
+      if (!tempUser || !twoFACode || !twoFAExpires) {
+        throw new Error('Session expired or invalid');
+      }
 
-  if (code !== twoFACode) {
-    throw new Error('Invalid 2FA code');
-  }
+      if (Date.now() > twoFAExpires) {
+        throw new Error('2FA code expired');
+      }
 
-  req.session.user = tempUser;
-  delete req.session.tempUser;
-  delete req.session.twoFACode;
-  delete req.session.twoFAExpires;
+      if (code !== twoFACode) {
+        throw new Error('Invalid 2FA code');
+      }
+
+      // Set the user in session
+      req.session.user = tempUser;
+      req.session.userId = tempUser.id;
+      
+      // Clean up temporary 2FA data
+      delete req.session.tempUser;
+      delete req.session.twoFACode;
+      delete req.session.twoFAExpires;
+
+      // Save the session
+      req.session.save((err) => {
+        if (err) {
+          console.error('Failed to save session after 2FA:', err);
+          return reject(new Error('Failed to save session'));
+        }
+        console.log('2FA verification successful for user:', tempUser.email);
+        resolve();
+      });
+    } catch (error) {
+      console.error('2FA verification error:', error);
+      reject(error);
+    }
+  });
 };

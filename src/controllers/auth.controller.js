@@ -26,11 +26,47 @@ export const loginUser = async (req, res, next) => {
   }
 };
 
+export const logoutUser = (req, res) => {
+  req.session.destroy(err => {
+    if (err) {
+      console.error('Logout error:', err);
+      return res.status(500).send('Logout failed');
+    }
+    res.clearCookie('sessionId');
+    res.redirect('/login');
+  });
+};
+
 export const verify2FA = async (req, res, next) => {
   try {
+    console.log('--- verify2FA Controller ---');
+    console.log('Session ID:', req.sessionID);
+    
     await handle2FAVerification(req);
-    res.redirect('/blog');
+    
+    console.log('2FA verification successful, redirecting to blog...');
+    console.log('Session after verification:', JSON.stringify(req.session, null, 2));
+    
+    // Ensure session is saved before redirecting
+    req.session.save((err) => {
+      if (err) {
+        console.error('Error saving session before redirect:', err);
+        return next(err);
+      }
+      console.log('Session saved, redirecting to /blog');
+      res.redirect('/blog');
+    });
   } catch (error) {
-    next(error);
+    console.error('2FA verification error:', {
+      message: error.message,
+      stack: error.stack,
+      session: req.session
+    });
+    
+    // Render an error page or redirect back to 2FA with error
+    res.status(400).render('verify-2fa', { 
+      error: error.message,
+      email: req.session.tempUser?.email 
+    });
   }
 };

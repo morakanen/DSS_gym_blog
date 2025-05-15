@@ -1,16 +1,19 @@
 import session from 'express-session';
 
-const isProduction = process.env.NODE_ENV === 'production';
+// Simple in-memory store for development
+const MemoryStore = new session.MemoryStore();
 
-export const sessionConfig = session({
-  name: 'sessionId',
-  secret: process.env.SESSION_SECRET || 'fallbackSecret',
+export const sessionConfig = {
+  secret: process.env.SESSION_SECRET || 'dev-secret-change-this',
   resave: false,
   saveUninitialized: false,
+  store: MemoryStore,
   cookie: {
     httpOnly: true,
-    secure: isProduction,
-    sameSite: isProduction ? 'strict' : 'lax',
+    secure: false, // Set to true in production with HTTPS
+    sameSite: 'lax',
     maxAge: 1000 * 60 * 60 * 1 // 1 hour
   }
-});
+};
+
+export const sessionMiddleware = session(sessionConfig);

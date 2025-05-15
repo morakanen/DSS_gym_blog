@@ -1,0 +1,21 @@
+extends layout
+
+block content
+  .container.py-5
+    .row.justify-content-center
+      .col-md-8
+        .card.shadow-lg.border-0.rounded-lg.mt-5
+          .card-header.bg-danger.text-white.text-center.py-4
+            h2.mb-0.fs-4
+              i.bi.bi-exclamation-triangle.me-2
+              | Error
+          .card-body.p-4.p-sm-5
+            if message
+              .alert.alert-danger= message
+            if error && Object.keys(error).length > 0
+              pre.mt-4.bg-light.p-3.rounded
+                code= JSON.stringify(error, null, 2)
+            .mt-4.text-center
+              a.btn.btn-primary(href='/blog')
+                i.bi.bi-arrow-left.me-2
+                | Back to Blog

@@ -56,11 +56,11 @@ block content
                   | Posted by #{post.author && post.author.name ? post.author.name : 'Anonymous'}
                   if post.createdAt
                     |  on #{new Date(post.createdAt).toLocaleDateString()}
-                if user && user === post.authorId
+                if user && user.id === post.authorId
                   .btn-group.mt-2
                     a.btn.btn-secondary.btn-sm(href=`/blog/${post.id}/edit`) Edit
-                    form(action=`/blog/${post.id}/delete`, method='POST', style='display: inline')
-                      button.btn.btn-danger.btn-sm(type='submit', onclick='return confirm("Are you sure?")') Delete
+                    form.d-inline(method='POST', action=`/blog/${post.id}/delete`)
+                      button.btn.btn-danger.btn-sm(type='submit' onclick='return confirm("Are you sure?")') Delete
       else
         .col-12
           .alert.alert-info No blog posts yet. Be the first to create one!
