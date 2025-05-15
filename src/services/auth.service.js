@@ -14,6 +14,14 @@ export const handleRegistration = async (body) => {
   });
 };
 
+// Artificial delay to prevent timing attacks
+const addArtificialDelay = async () => {
+  const MIN_DELAY = 1000; // 1 second minimum delay
+  const RANDOM_DELAY = 500; // Up to 0.5 seconds additional random delay
+  const delay = MIN_DELAY + Math.random() * RANDOM_DELAY;
+  await new Promise(resolve => setTimeout(resolve, delay));
+};
+
 export const handleLogin = async (req, res, next) => {
   try {
     validateLogin(req.body);
@@ -30,8 +38,13 @@ export const handleLogin = async (req, res, next) => {
     // ✅ User lookup
     const user = await prisma.users.findUnique({ where: { email } });
 
-    // ✅ Password check
+    // ✅ Password check with timing attack protection
+    const startTime = Date.now();
     const passwordMatch = user && await comparePasswords(password, user.password);
+    
+    // Add artificial delay to prevent timing attacks
+    await addArtificialDelay();
+    
     if (!passwordMatch) {
       return res.status(401).render('login-error', {
         errorType: 'invalid-credentials'

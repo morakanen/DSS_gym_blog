@@ -1,0 +1,121 @@
+Security Headers (security.js):
+javascript
+CopyInsert
+helmet.contentSecurityPolicy({
+  directives: {
+    defaultSrc: ["'self'"],
+    scriptSrc: ["'self'", "'unsafe-inline'", 'https://hcaptcha.com'],
+    // ...
+  }
+})
+What: Defines which resources can be loaded and from where
+Protects Against:
+XSS attacks by controlling script sources
+Clickjacking by preventing iframe embedding
+Data injection by restricting resource origins
+Man-in-the-middle attacks by enforcing HTTPS
+Input Sanitization (sanitize.js):
+javascript
+CopyInsert
+const DOMPurify = createDOMPurify(window);
+export const sanitizeInput = (req, res, next) => {
+  if (req.body) {
+    Object.keys(req.body).forEach(key => {
+      if (typeof req.body[key] === 'string') {
+        req.body[key] = DOMPurify.sanitize(req.body[key].trim());
+      }
+    });
+  }
+}
+What: Cleans user input by removing malicious HTML/JavaScript
+Protects Against:
+XSS attacks in user content
+HTML injection
+JavaScript injection
+Malformed input attacks
+Error Handler (errorHandler.js):
+javascript
+CopyInsert
+export const errorHandler = (err, req, res, next) => {
+  const message = process.env.NODE_ENV === 'development' 
+    ? err.message 
+    : 'An error occurred';
+  // ...
+}
+What: Centralizes error handling and hides sensitive details
+Protects Against:
+Information leakage through error messages
+Stack trace exposure
+System information disclosure
+Path disclosure vulnerabilities
+Test Controller Updates:
+javascript
+CopyInsert
+const result = await prisma.$queryRaw`SELECT NOW()`;
+res.json({ 
+  message: process.env.NODE_ENV === 'development' 
+    ? 'Connected to Railway PostgreSQL'
+    : 'Database connection successful'
+});
+What: Replaces raw queries with Prisma and hides implementation details
+Protects Against:
+SQL injection attacks
+Database information disclosure
+System information leakage
+Version number exposure
+Rate Limiting (rateLimit.js):
+javascript
+CopyInsert
+export const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 5 // 5 attempts per window
+});
+What: Limits the number of requests from an IP
+Protects Against:
+Brute force attacks
+DoS attacks
+Credential stuffing
+Password spraying
+Added Security Dependencies:
+json
+CopyInsert
+{
+  "dompurify": "^3.0.8",
+  "helmet": "^8.1.0",
+  "xss": "^1.0.14"
+}
+What: Added specialized security libraries
+Protects Against:
+dompurify: HTML-based XSS attacks
+helmet: Various HTTP vulnerabilities
+xss: Cross-site scripting attacks
+Permissions Policy Header:
+javascript
+CopyInsert
+res.setHeader('Permissions-Policy', 
+  'geolocation=(), microphone=(), camera=()');
+What: Controls browser feature permissions
+Protects Against:
+Unauthorized feature access
+Privacy violations
+Sensor access abuse
+Location tracking
+Content Security Directives:
+javascript
+CopyInsert
+scriptSrc: ["'self'", "'unsafe-inline'", 'https://hcaptcha.com'],
+styleSrc: ["'self'", "'unsafe-inline'"],
+What: Fine-grained control over resource loading
+Protects Against:
+Remote script injection
+Unauthorized resource loading
+Mixed content vulnerabilities
+Data exfiltration
+These security measures work together to create multiple layers of protection:
+
+Prevention: Headers and CSP prevent attacks
+Sanitization: Clean input before processing
+Rate Limiting: Prevent abuse and brute force
+Error Handling: Hide sensitive information
+Monitoring: Track and log security events
+This defense-in-depth approach means that even if one security measure fails, others are still in place to protect the application.

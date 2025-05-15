@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { loginLimiter } from '../config/ratelimiter.js';
+import { loginLimiter, twoFactorLimiter } from '../middleware/rateLimit.js';
 import {
   showRegisterForm,
   registerUser,
@@ -23,6 +23,6 @@ router.post('/login', loginLimiter, loginUser); // ✅ Apply limiter here
 
 // 2FA
 router.get('/auth/verify-2fa', show2FAForm);
-router.post('/verify-2fa', verify2FA);
+router.post('/verify-2fa', twoFactorLimiter, verify2FA);
 
 export default router;

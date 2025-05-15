@@ -2,18 +2,47 @@ extends ../layout
 
 block content
   .container.mt-4
-    if userName
-      h1.mb-4 Welcome #{userName} to the Blog
-    else
-      h1.mb-4 Blog Posts
+    .row.align-items-center.mb-4
+      .col
+        if userName
+          h1.mb-0 Welcome #{userName} to the Blog
+        else
+          h1.mb-0 Blog Posts
+      .col-auto
+        if user
+          a.btn.btn-primary(href='/blog/new')
+            i.bi.bi-plus-lg.me-2
+            | Create New Post
+        else
+          .alert.alert-info.mb-0
+            | Please 
+            a(href='/login') log in
+            |  to create posts
     
-    if user
-      a.btn.btn-primary.mb-4(href='/blog/new') Create New Post
-    else
+    form.row.g-3.mb-4(action='/blog', method='GET')
+      .col-md-8.col-lg-6
+        .input-group.input-group-lg.shadow-sm
+          input.form-control.border-end-0(type='search', name='search', placeholder='Search blogs...', value=search)
+          button.btn.btn-outline-primary.border-start-0(type='submit')
+            i.bi.bi-search.fs-5
+      if search
+        .col-auto
+          a.btn.btn-outline-secondary.btn-lg(href='/blog')
+            i.bi.bi-x-lg.me-2
+            | Clear Search
+    
+    if search
       .alert.alert-info.mb-4
-        | Please 
-        a(href='/login') log in
-        |  to create posts
+        if posts.length === 0
+          | No results found for "
+          strong #{search}
+          | "
+        else
+          | Found 
+          strong #{posts.length}
+          |  result#{posts.length === 1 ? '' : 's'} for "
+          strong #{search}
+          | "
     
     .row
       if posts && posts.length > 0

@@ -12,10 +12,19 @@ const isAuthenticated = (req, res, next) => {
   res.redirect('/login');
 };
 
-// Get all blog posts
+// Get all blog posts with optional search
 router.get('/', async (req, res) => {
   try {
+    const { search } = req.query;
+    const where = search ? {
+      OR: [
+        { title: { contains: search, mode: 'insensitive' } },
+        { content: { contains: search, mode: 'insensitive' } }
+      ]
+    } : {};
+
     const posts = await prisma.blog.findMany({
+      where,
       include: {
         author: {
           select: {
@@ -30,6 +39,7 @@ router.get('/', async (req, res) => {
     });
     res.render('blog/index', { 
       posts, 
+      search,
       user: req.session.userId,
       userName: req.session.user?.name
     });

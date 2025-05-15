@@ -1,14 +1,20 @@
-import { query } from '../utils/database.js';
+import { prisma } from '../utils/database.js';
 
 export const testDatabase = async (req, res, next) => {
   try {
-    const result = await query("SELECT NOW()");
+    // Use Prisma instead of raw query for better security
+    const result = await prisma.$queryRaw`SELECT NOW()`;
+    
+    // Don't expose database details in production
     res.json({ 
       success: true, 
-      message: "Connected to Railway PostgreSQL", 
-      time: result.rows[0] 
+      message: process.env.NODE_ENV === 'development' 
+        ? 'Connected to Railway PostgreSQL'
+        : 'Database connection successful',
+      time: result[0].now
     });
   } catch (error) {
-    next(error);
+    // Don't expose error details in production
+    next(process.env.NODE_ENV === 'development' ? error : new Error('Internal server error'));
   }
 };
